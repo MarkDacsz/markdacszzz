@@ -26,6 +26,8 @@ import img23 from "./assets/thumbnail/2.png";
 import img24 from "./assets/thumbnail/3.png";
 import img25 from "./assets/thumbnail/4.png";
 import img26 from "./assets/thumbnail/5.png";
+import img27 from "./assets/images/final_talk.png";
+import img28 from "./assets/images/horsiee.png";
 
 const logotext = "DACSIL";
 const meta = {
@@ -241,6 +243,16 @@ const dataportfolio = [
         img: img21,
         description: "Portfolio Project 21",
         link: img21,
+    },
+    {
+        img: img27,
+        description: "Portfolio Project 22",
+        link: img27,
+    },
+    {
+        img: img28,
+        description: "Portfolio Project 23",
+        link: img28,
     },
 ];
 

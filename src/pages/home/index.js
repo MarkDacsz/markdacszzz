@@ -4,7 +4,7 @@ import { Helmet, HelmetProvider } from "react-helmet-async";
 import Typewriter from "typewriter-effect";
 import { introdata, meta } from "../../content_option";
 import { Link } from "react-router-dom";
-import resumeFile from "../../assets/Updated_Resume.pdf";
+import resumeFile from "../../assets/Updated_Resumee.pdf";
 
 
 export const Home = () => {
