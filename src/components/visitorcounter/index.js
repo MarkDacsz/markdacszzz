@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './style.css';
 
-const LOCAL_API = '/api/visitors';
-const COUNTAPI_HIT = 'https://api.countapi.xyz/hit/markdacszzz/portfolio';
-const COUNTAPI_GET = 'https://api.countapi.xyz/get/markdacszzz/portfolio';
+const API_URL = '/api/visitors';
 
 const VisitorCounter = () => {
   const [count, setCount] = useState(null);
@@ -12,53 +10,17 @@ const VisitorCounter = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const useLocalApi = window.location.hostname.includes('localhost');
-    const alreadyCounted = Boolean(window.localStorage.getItem('visitor_counted'));
-
-    const fetchCountApi = async () => {
-      try {
-        if (!alreadyCounted) {
-          const hitResponse = await fetch(COUNTAPI_HIT, {
-            headers: { Accept: 'application/json' },
-          });
-          if (!hitResponse.ok) throw new Error('Count API hit failed');
-          const hitData = await hitResponse.json();
-          window.localStorage.setItem('visitor_counted', 'true');
-          return hitData.value;
-        }
-
-        const getResponse = await fetch(COUNTAPI_GET, {
-          headers: { Accept: 'application/json' },
-        });
-        if (!getResponse.ok) throw new Error('Count API get failed');
-        const getData = await getResponse.json();
-        return getData.value;
-      } catch (error) {
-        return null;
-      }
-    };
-
     const fetchCount = async () => {
       try {
-        let value = null;
-
-        if (useLocalApi) {
-          const response = await fetch(LOCAL_API, {
-            headers: { Accept: 'application/json' },
-          });
-          if (response.ok) {
-            const data = await response.json();
-            value = data.count;
-          }
-        }
-
-        if (value === null) {
-          value = await fetchCountApi();
-        }
+        const response = await fetch(API_URL, {
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) throw new Error('Unable to load visitor count');
+        const data = await response.json();
 
         if (isMounted) {
-          setCount(value ?? '—');
-          setLabel('Total unique visitors');
+          setCount(data.count);
+          setLabel(data.label || 'Total unique visitors');
         }
       } catch (error) {
         if (isMounted) {
