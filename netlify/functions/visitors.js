@@ -1,44 +1,67 @@
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+const https = require('https');
 
-const DATA_FILE = path.join(__dirname, '../../data/visitor-counter.json');
+const COUNT_API_URLS = [
+  'https://api.countapi.xyz/hit/markdacszzz/portfolio',
+  'https://countapi.com/hit/markdacszzz/portfolio',
+];
 
-function readStore() {
-  try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch (error) {
-    return { visitors: [] };
-  }
-}
+const fetchCount = (url) =>
+  new Promise((resolve, reject) => {
+    https
+      .get(url, { headers: { Accept: 'application/json' } }, (res) => {
+        const contentType = res.headers['content-type'] || '';
+        let body = '';
 
-function writeStore(store) {
-  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2));
-}
+        res.on('data', (chunk) => {
+          body += chunk;
+        });
 
-function getVisitorFingerprint(req) {
-  const forwardedIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim();
-  const ip = forwardedIp || req.ip || 'unknown';
-  const userAgent = req.headers['user-agent'] || 'unknown';
-  return crypto.createHash('sha256').update(`${ip}:${userAgent}`).digest('hex');
-}
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            return reject(new Error(`Count API returned ${res.statusCode}`));
+          }
 
-exports.handler = async function (event) {
-  const store = readStore();
-  const fingerprint = getVisitorFingerprint(event);
+          if (!contentType.includes('application/json')) {
+            return reject(new Error('Count API response was not JSON'));
+          }
 
-  if (!store.visitors.includes(fingerprint)) {
-    store.visitors.push(fingerprint);
-    writeStore(store);
+          try {
+            const data = JSON.parse(body);
+            return resolve(data);
+          } catch (error) {
+            return reject(error);
+          }
+        });
+      })
+      .on('error', reject)
+      .setTimeout(5000, () => reject(new Error('Count API request timed out')));
+  });
+
+exports.handler = async function () {
+  for (const url of COUNT_API_URLS) {
+    try {
+      const response = await fetchCount(url);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          count: response.value ?? response.count ?? 0,
+          label: 'Total unique visitors',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      };
+    } catch (error) {
+      console.error('Visitor count API failed for', url, error.message);
+    }
   }
 
   return {
-    statusCode: 200,
+    statusCode: 503,
     body: JSON.stringify({
-      count: store.visitors.length,
-      label: 'Total unique visitors',
+      error: 'Visitor count service unavailable',
+      label: 'Visitor count unavailable',
     }),
     headers: {
       'Content-Type': 'application/json',

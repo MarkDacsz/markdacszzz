@@ -19,13 +19,13 @@ const VisitorCounter = () => {
         const data = await response.json();
 
         if (isMounted) {
-          setCount(data.count);
+          setCount(data.count ?? '—');
           setLabel(data.label || 'Total unique visitors');
         }
       } catch (error) {
         if (isMounted) {
           setCount('—');
-          setLabel('Total unique visitors');
+          setLabel('Visitor count unavailable');
         }
       }
     };
