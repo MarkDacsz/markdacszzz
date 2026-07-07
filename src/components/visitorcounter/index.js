@@ -3,7 +3,7 @@ import './style.css';
 
 const VisitorCounter = () => {
   const [count, setCount] = useState(null);
-  const [monthLabel, setMonthLabel] = useState('');
+  const [label, setLabel] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -22,12 +22,12 @@ const VisitorCounter = () => {
 
         if (isMounted) {
           setCount(data.count);
-          setMonthLabel(data.monthLabel);
+          setLabel(data.label || 'Total unique visitors');
         }
       } catch (error) {
         if (isMounted) {
           setCount('—');
-          setMonthLabel('current month');
+          setLabel('Total unique visitors');
         }
       }
     };
@@ -40,9 +40,9 @@ const VisitorCounter = () => {
 
   return (
     <div className="visitor_counter" aria-live="polite">
-      <span className="visitor_counter__label">Monthly visitors</span>
+      <span className="visitor_counter__label">Visitors</span>
       <strong className="visitor_counter__value">{count ?? '•••'}</strong>
-      <span className="visitor_counter__meta">{monthLabel || 'loading...'}</span>
+      <span className="visitor_counter__meta">{label || 'loading...'}</span>
     </div>
   );
 };

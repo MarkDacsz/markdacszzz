@@ -40,17 +40,13 @@ function readStore() {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     return JSON.parse(raw);
   } catch (error) {
-    return { month: null, visitors: [] };
+    return { visitors: [] };
   }
 }
 
 function writeStore(store) {
   fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
   fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2));
-}
-
-function getMonthKey(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function getVisitorFingerprint(req) {
@@ -62,21 +58,14 @@ function getVisitorFingerprint(req) {
 
 function normalizeStore(store) {
   return {
-    month: store?.month || null,
     visitors: Array.isArray(store?.visitors) ? store.visitors : [],
   };
 }
 
 app.get('/api/visitors', (req, res) => {
-  const currentMonth = getMonthKey();
   const store = normalizeStore(readStore());
-
-  if (store.month !== currentMonth) {
-    store.month = currentMonth;
-    store.visitors = [];
-  }
-
   const fingerprint = getVisitorFingerprint(req);
+
   if (!store.visitors.includes(fingerprint)) {
     store.visitors.push(fingerprint);
     writeStore(store);
@@ -84,11 +73,7 @@ app.get('/api/visitors', (req, res) => {
 
   res.json({
     count: store.visitors.length,
-    month: currentMonth,
-    monthLabel: new Date().toLocaleString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    }),
+    label: 'Total unique visitors',
   });
 });
 
