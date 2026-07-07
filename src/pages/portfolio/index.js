@@ -53,7 +53,7 @@ export const Portfolio = () => {
             <div className="mb-5 po_items_ho">
               {dataportfolio.map((data, i) => (
                 <div key={i} className="po_item">
-                  <img src={data.img} alt="" />
+                  <img src={data.img} alt="" loading="lazy" decoding="async" />
 
                   <div className="content">
                     <p>{data.description}</p>
@@ -91,6 +91,8 @@ export const Portfolio = () => {
                   src={video.thumbnail}
                   alt={video.title}
                   className="video_thumbnail"
+                  loading="lazy"
+                  decoding="async"
                 />
 
                 <div

@@ -1,0 +1,60 @@
+.games_page .game_card {
+  border: 1px solid var(--secondary-color);
+  padding: 24px;
+  background: rgba(255,255,255,0.03);
+  min-height: 100%;
+}
+
+.games_page .game_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.games_page .game_header button,
+.games_page .reaction_button {
+  border: 1px solid var(--secondary-color);
+  background: transparent;
+  color: var(--text-color);
+  padding: 8px 12px;
+  transition: transform 0.2s ease;
+}
+
+.games_page .game_header button:hover,
+.games_page .reaction_button:hover {
+  transform: translateY(-2px);
+}
+
+.games_page .memory_grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.games_page .memory_card {
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--secondary-color);
+  background: var(--secondary-color);
+  color: var(--primary-color);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.games_page .memory_card.is_visible {
+  background: var(--primary-color);
+  color: var(--text-color);
+}
+
+.games_page .reaction_button {
+  width: 100%;
+  min-height: 140px;
+  margin-top: 16px;
+  font-size: 1.05rem;
+}
+
+.games_page .reaction_result {
+  margin-top: 12px;
+  color: var(--secondary-color);
+}

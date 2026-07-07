@@ -16,6 +16,16 @@
     font-weight: 700;
     margin: 15px 0 20px;
     font-family: 'Raleway';
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.skill_icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--secondary-color);
 }
 
 .progress {

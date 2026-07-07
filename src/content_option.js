@@ -1,5 +1,4 @@
 import profileImage from "./assets/images/notforsale.png";
-import img1 from "./assets/images/1.jpg";
 import img2 from "./assets/images/Artboard 4.png";
 import img3 from "./assets/images/Artboard 5.png";
 import img4 from "./assets/images/birthday.png";
@@ -20,7 +19,6 @@ import img18 from "./assets/images/SLIDE2.png";
 import img19 from "./assets/images/SLIDE4.png";
 import img20 from "./assets/images/TTP1.png";
 import img21 from "./assets/images/TTP2.png";
-import { FaYoutube } from "react-icons/fa";
 import img22 from "./assets/thumbnail/1.png";
 import img23 from "./assets/thumbnail/2.png";
 import img24 from "./assets/thumbnail/3.png";
@@ -88,7 +86,7 @@ const worktimeline = [{
 ];
 
 const skills = [{
-        name: "Java",
+        name: "JavaScript",
         value: 75,
     },
     {
@@ -121,7 +119,7 @@ const skills = [{
     },
     {
         name: "Figma",
-        value: 85,
+        value: 50,
     },
     {
         name: "Microsoft Office",
