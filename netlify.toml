@@ -1,0 +1,10 @@
+[build]
+  publish = "build"
+  command = "npm run build"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/visitors"
+  to = "/.netlify/functions/visitors"
+  status = 200
+  force = true
