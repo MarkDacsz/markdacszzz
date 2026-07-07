@@ -1,0 +1,29 @@
+.visitor_counter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px;
+  margin-top: 18px;
+  border: 1px solid var(--secondary-color);
+  background: rgba(255,255,255,0.03);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  width: fit-content;
+}
+
+.visitor_counter__label {
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--secondary-color);
+}
+
+.visitor_counter__value {
+  font-size: 1.35rem;
+  color: var(--text-color);
+}
+
+.visitor_counter__meta {
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+}

@@ -2,6 +2,8 @@ import React from "react";
 import "./style.css";
 import { Helmet, HelmetProvider } from "react-helmet-async";
 import { Container, Row, Col } from "react-bootstrap";
+import { FaReact, FaJava, FaPython, FaHtml5, FaCss3Alt, FaBootstrap, FaGitAlt, FaGithub } from "react-icons/fa";
+import { SiJavascript, SiPhp, SiMysql, SiAdobephotoshop, SiAdobepremierepro, SiAdobeaftereffects, SiCanva, SiFigma, SiMicrosoftoffice } from "react-icons/si";
 import {
   dataabout,
   meta,
@@ -9,6 +11,31 @@ import {
   skills,
   services,
 } from "../../content_option";
+
+const skillIconMap = {
+  JavaScript: <SiJavascript />,
+  PHP: <SiPhp />,
+  MySQL: <SiMysql />,
+  ReactJs: <FaReact />,
+  React: <FaReact />,
+  Java: <FaJava />,
+  Python: <FaPython />,
+  HTML: <FaHtml5 />,
+  CSS: <FaCss3Alt />,
+  Bootstrap: <FaBootstrap />,
+  Tailwind: <FaCss3Alt />,
+  Git: <FaGitAlt />,
+  GitHub: <FaGithub />,
+  Figma: <SiFigma />,
+  Photoshop: <SiAdobephotoshop />,
+  Illustrator: <SiAdobephotoshop />,
+  "Premiere Pro": <SiAdobepremierepro />,
+  Canva: <SiCanva />,
+  "Microsoft Office": <SiMicrosoftoffice />,
+  "After Effects": <SiAdobeaftereffects />,
+};
+
+const getSkillIcon = (name) => skillIconMap[name] || <FaGitAlt />;
 
 export const About = () => {
   return (
@@ -63,7 +90,10 @@ export const About = () => {
             {skills.map((data, i) => {
               return (
                 <div key={i}>
-                  <h3 className="progress-title">{data.name}</h3>
+                  <h3 className="progress-title">
+                    <span className="skill_icon">{getSkillIcon(data.name)}</span>
+                    {data.name}
+                  </h3>
                   <div className="progress">
                     <div
                       className="progress-bar"
