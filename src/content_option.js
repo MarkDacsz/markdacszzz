@@ -36,8 +36,8 @@ const meta = {
 const introdata = {
     title: "I’m John Chrismark Dacsil",
     animated: {
-        first: "UI/UX Designer",
-        second: "Programmer",
+        first: "Software Engineer / Full Stack Developer",
+        second: "UI/UX Designer",
         third: "Graphics Designer",
     },
     description: "I’m an Information Technology graduate from Colegio De San Juan De Letran Calamba, passionate about learning and building innovative solutions. Explore my projects, skills, and experiences—and let’s connect to create something meaningful.",
