@@ -1,14 +1,17 @@
 import React, { useState } from "react";
 import "./style.css";
+import "./portfolio.css";
+import "./modal.css";
 import { Helmet, HelmetProvider } from "react-helmet-async";
 import { Container, Row, Col } from "react-bootstrap";
 import { dataportfolio, datavideo, meta } from "../../content_option";
+import { featuredProjects } from "../../data/portfolioData";
+import ProjectCard from "../../components/ProjectCard";
 
 export const Portfolio = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
 
-  // IMAGE
   const openImageLightbox = (imageUrl) => {
     setSelectedImage(imageUrl);
   };
@@ -17,11 +20,9 @@ export const Portfolio = () => {
     setSelectedImage(null);
   };
 
-
- const openVideoModal = (videoUrl) => {
-  setSelectedVideo(videoUrl);
-};
-
+  const openVideoModal = (videoUrl) => {
+    setSelectedVideo(videoUrl);
+  };
 
   const closeVideoModal = () => {
     setSelectedVideo(null);
@@ -42,18 +43,35 @@ export const Portfolio = () => {
           <Col lg="8">
             <h1 className="display-4 mb-4"> Portfolio </h1>
             <hr className="t_border my-4 ml-0 text-left" />
+             <p className="portfolio-section__subtitle">
+              Selected technical projects with professional summaries, 
+              technology stacks, and key contributions.
+            </p>
+          </Col>
+        </Row>
+
+        <Row className="mb-5">
+          <Col lg="12">
+            <h2 className="portfolio-section__title">Programming Projects</h2>
+            <p className="portfolio-section__subtitle">
+              Senior technical projects with concise descriptions, technology stacks, and key contributions.
+            </p>
+            <div className="project-grid">
+              {featuredProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </div>
           </Col>
         </Row>
 
         {/* IMAGE SECTION */}
         <Row className="mb-5">
           <Col lg="12">
-            <h2 className="mb-4">Image Projects</h2>
-
+            <h2 className="portfolio-section__title">Image Projects</h2>
             <div className="mb-5 po_items_ho">
               {dataportfolio.map((data, i) => (
                 <div key={i} className="po_item">
-                  <img src={data.img} alt="" loading="lazy" decoding="async" />
+                  <img src={data.img} alt={data.description} loading="lazy" decoding="async" />
 
                   <div className="content">
                     <p>{data.description}</p>
@@ -77,16 +95,17 @@ export const Portfolio = () => {
         {/* VIDEO SECTION */}
         <Row className="mb-5">
           <Col lg="8">
-            <h2 className="mb-4">Video Projects</h2>
-            <hr className="t_border my-4 ml-0 text-left" />
+            <h2 className="portfolio-section__title">Video Projects</h2>
+            <p className="portfolio-section__subtitle">
+              Interactive video showcases with preview cards, smooth hover interactions, and a polished modal experience.
+            </p>
           </Col>
         </Row>
 
         <Row className="mb-5">
           {datavideo.map((video, i) => (
             <Col md="6" lg="4" className="mb-4" key={i}>
-              <div className="po_item video_item">
-
+              <div className="po_item video_item" onClick={() => openVideoModal(video.link)}>
                 <img
                   src={video.thumbnail}
                   alt={video.title}
@@ -95,10 +114,7 @@ export const Portfolio = () => {
                   decoding="async"
                 />
 
-                <div
-                  className="video_play_overlay"
-                  onClick={() => openVideoModal(video.link)}
-                >
+                <div className="video_play_overlay">
                   <div className="video_placeholder">
                     <i className="fa fa-play-circle"></i>
                   </div>
@@ -106,7 +122,6 @@ export const Portfolio = () => {
 
                 <div className="content">
                   <h5>{video.title}</h5>
-
                   <a
                     href="#!"
                     onClick={(e) => {
@@ -118,34 +133,13 @@ export const Portfolio = () => {
                     play video
                   </a>
                 </div>
-
               </div>
             </Col>
           ))}
         </Row>
       </Container>
 
-      {/* IMAGE MODAL */}
-      {selectedImage && (
-        <div className="lightbox_overlay" onClick={closeImageLightbox}>
-          <div
-            className="lightbox_content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button className="lightbox_close" onClick={closeImageLightbox}>
-              &times;
-            </button>
-
-            <img
-              src={selectedImage}
-              alt="lightbox"
-              className="lightbox_image"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* VIDEO MODAL (FIXED - GOOGLE DRIVE WORKING) */}
+      {/* VIDEO MODAL */}
       {selectedVideo && (
         <div className="video_modal_overlay" onClick={closeVideoModal}>
           <div
@@ -156,19 +150,17 @@ export const Portfolio = () => {
               &times;
             </button>
 
-          <iframe
-          src={selectedVideo}
-          title="Video Player"
-          style={{
-          width: "100%",
-          height: "500px",
-          border: "none"
-          }}
-          allow="autoplay"
-          allowFullScreen
-          />
-
-
+            <iframe
+              src={selectedVideo}
+              title="Video Player"
+              style={{
+                width: "100%",
+                height: "500px",
+                border: "none",
+              }}
+              allow="autoplay"
+              allowFullScreen
+            />
           </div>
         </div>
       )}
