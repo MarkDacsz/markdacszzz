@@ -9,6 +9,7 @@ import AppRoutes from "./routes";
 import Headermain from "../header";
 import AnimatedCursor  from "../hooks/AnimatedCursor";
 import ErrorBoundary from "../components/ErrorBoundary";
+import ReloadOverlay from "../components/ReloadOverlay";
 import "./App.css";
 
 function _ScrollToTop(props) {
@@ -24,6 +25,7 @@ export default function App() {
   return (
     <Router basename={process.env.PUBLIC_URL}>
       <ErrorBoundary>
+        <ReloadOverlay />
         <div className="cursor__dot">
           <AnimatedCursor
             innerSize={15}
