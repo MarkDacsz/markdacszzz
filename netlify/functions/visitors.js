@@ -1,16 +1,11 @@
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
+const { connectLambda, getStore } = require('@netlify/blobs');
 
 const GIST_ID = process.env.VISITOR_GIST_ID;
 const GITHUB_TOKEN = process.env.VISITOR_GITHUB_TOKEN;
 const GIST_FILE = process.env.VISITOR_GIST_FILE || 'visitor-counter.json';
-
-const fallbackStorePath = fs.existsSync('/tmp')
-  ? path.join('/tmp', 'visitor-counter.json')
-  : path.join(__dirname, '..', '..', 'data', 'visitor-counter.json');
-
-const STORAGE_PATH = process.env.VISITOR_STORE || fallbackStorePath;
+const BLOBS_STORE = process.env.VISITOR_BLOBS_STORE || 'visitor-counter';
+const BLOBS_KEY = process.env.VISITOR_BLOBS_KEY || 'visitor-counter.json';
 const USE_GIST = Boolean(GIST_ID && GITHUB_TOKEN);
 
 function normalizeStore(store) {
@@ -85,25 +80,18 @@ async function saveGistStore(store) {
   }
 }
 
-function readLocalStore() {
-  try {
-    const raw = fs.readFileSync(STORAGE_PATH, 'utf8');
-    return normalizeStore(JSON.parse(raw));
-  } catch (error) {
-    return { visitors: [] };
-  }
-}
-
-function writeLocalStore(store) {
-  try {
-    fs.mkdirSync(path.dirname(STORAGE_PATH), { recursive: true });
-    fs.writeFileSync(STORAGE_PATH, JSON.stringify(store, null, 2), 'utf8');
-  } catch (error) {
-    console.error('Unable to persist visitor store locally:', error.message);
-  }
+function getBlobStore() {
+  return getStore(BLOBS_STORE);
 }
 
 async function readStore() {
+  try {
+    const data = await getBlobStore().get(BLOBS_KEY, { type: 'json' });
+    return normalizeStore(data);
+  } catch (error) {
+    console.error('Netlify Blobs load failed:', error.message);
+  }
+
   if (USE_GIST) {
     try {
       return await getGistStore();
@@ -112,10 +100,17 @@ async function readStore() {
     }
   }
 
-  return readLocalStore();
+  return { visitors: [] };
 }
 
 async function writeStore(store) {
+  try {
+    await getBlobStore().setJSON(BLOBS_KEY, normalizeStore(store));
+    return;
+  } catch (error) {
+    console.error('Netlify Blobs save failed:', error.message);
+  }
+
   if (USE_GIST) {
     try {
       await saveGistStore(store);
@@ -125,7 +120,7 @@ async function writeStore(store) {
     }
   }
 
-  writeLocalStore(store);
+  throw new Error('Unable to persist visitor store');
 }
 
 function getVisitorFingerprint(event) {
@@ -149,6 +144,8 @@ function createResponse(statusCode, body) {
 
 exports.handler = async function (event) {
   try {
+    connectLambda(event);
+
     const store = normalizeStore(await readStore());
     const fingerprint = getVisitorFingerprint(event);
 
