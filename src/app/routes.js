@@ -8,7 +8,8 @@ const Home = lazy(() => import("../pages/home").then((module) => ({ default: mod
 const Portfolio = lazy(() => import("../pages/portfolio").then((module) => ({ default: module.Portfolio })));
 const ContactUs = lazy(() => import("../pages/contact").then((module) => ({ default: module.ContactUs })));
 const About = lazy(() => import("../pages/about").then((module) => ({ default: module.About })));
-const Games = lazy(() => import("../pages/games").then((module) => ({ default: module.Games })));
+// Temporarily disable the Games page by routing to Home instead of loading the mini-game.
+// const Games = lazy(() => import("../pages/games").then((module) => ({ default: module.Games })));
 
 const PageFallback = () => (
   <div className="page-loading" aria-label="Loading page content" />
@@ -30,7 +31,7 @@ const AnimatedRoutes = withRouter(({ location }) => (
           <Route exact path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/games" element={<Games />} />
+          {/* <Route path="/games" element={<Home />} /> */}
           <Route path="/contact" element={<ContactUs />} />
           <Route path="*" element={<Home />} />
         </Routes>
