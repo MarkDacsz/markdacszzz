@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./style.css";
 import "./portfolio.css";
 import "./modal.css";
@@ -7,6 +7,40 @@ import { Container, Row, Col } from "react-bootstrap";
 import { dataportfolio, datavideo, meta } from "../../content_option";
 import { featuredProjects } from "../../data/portfolioData";
 import ProjectCard from "../../components/ProjectCard";
+
+function toYoutubeEmbedUrl(url) {
+  if (!url) return url;
+
+  // Already embed
+  if (url.includes("youtube.com/embed/")) {
+    const [base, query] = url.split("?");
+    const params = new URLSearchParams(query || "");
+    // Hide potential extra UI variations; keep only one controls set
+    params.set("rel", "0");
+    params.set("modestbranding", "1");
+    params.set("iv_load_policy", "3");
+    params.set("playsinline", "1");
+    params.set("autoplay", "1");
+    return `${base}?${params.toString()}`;
+  }
+
+  // youtu.be/<id>
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/);
+  if (shortMatch?.[1]) {
+    const id = shortMatch[1];
+    return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&autoplay=1`;
+  }
+
+  // youtube.com/watch?v=<id>
+  const match = url.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
+  if (match?.[1]) {
+    const id = match[1];
+    return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&autoplay=1`;
+  }
+
+  // Keep as-is for non-YouTube providers
+  return url;
+}
 
 export const Portfolio = () => {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -21,22 +55,35 @@ export const Portfolio = () => {
   };
 
   const openVideoModal = (videoUrl) => {
-    setSelectedVideo(videoUrl);
+    setSelectedVideo(toYoutubeEmbedUrl(videoUrl));
   };
 
   const closeVideoModal = () => {
     setSelectedVideo(null);
   };
 
+  const isImageOpen = !!selectedImage;
+  const isVideoOpen = !!selectedVideo;
+
+  const imageAria = useMemo(() => {
+    if (!selectedImage) return "";
+    return "Project image preview";
+  }, [selectedImage]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        closeImageLightbox();
+        closeVideoModal();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <HelmetProvider>
       <Container className="About-header">
-
-        <Helmet>
-          <meta charSet="utf-8" />
-          <title> Portfolio | {meta.title} </title>
-          <meta name="description" content={meta.description} />
-        </Helmet>
 
         {/* HEADER */}
         <Row className="mb-5 mt-3 pt-md-3">
@@ -139,26 +186,63 @@ export const Portfolio = () => {
         </Row>
       </Container>
 
-      {/* VIDEO MODAL */}
-      {selectedVideo && (
-        <div className="video_modal_overlay" onClick={closeVideoModal}>
+      {/* IMAGE LIGHTBOX */}
+      {selectedImage && (
+        <div
+          className="lightbox_overlay portfolio-image-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={imageAria}
+          onClick={closeImageLightbox}
+        >
           <div
-            className="video_modal_content"
+            className="lightbox_content portfolio-image-lightbox__content"
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="video_modal_close" onClick={closeVideoModal}>
+            <button
+              className="lightbox_close"
+              type="button"
+              aria-label="Close image"
+              onClick={closeImageLightbox}
+            >
+              &times;
+            </button>
+
+            <img
+              className="lightbox_image portfolio-image-lightbox__image"
+              src={selectedImage}
+              alt="Project"
+              loading="eager"
+              decoding="async"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* VIDEO MODAL */}
+      {selectedVideo && (
+        <div
+          className="video_modal_overlay video_modal_overlay--open"
+          onClick={closeVideoModal}
+        >
+          <div
+            className="video_modal_content video_modal_content--open"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="video_modal_close"
+              type="button"
+              onClick={closeVideoModal}
+              aria-label="Close video"
+            >
               &times;
             </button>
 
             <iframe
               src={selectedVideo}
               title="Video Player"
-              style={{
-                width: "100%",
-                height: "500px",
-                border: "none",
-              }}
-              allow="autoplay"
+              className="video_iframe"
+              allow="autoplay; fullscreen"
               allowFullScreen
             />
           </div>
