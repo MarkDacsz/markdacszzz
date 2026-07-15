@@ -101,10 +101,19 @@ module.exports = async function handler(req, res) {
     res.end(out.body);
   } catch (error) {
     // Graceful failure (frontend already handles this)
-    console.error('Visitor counter failed:', error && error.message ? error.message : error);
+    const message = error && error.message ? error.message : String(error);
+    console.error('Visitor counter failed:', message);
+
+    // Include limited diagnostics but keep response compatible
     const out = createResponse(503, {
       error: 'Visitor count unavailable',
       label: 'Visitor count unavailable',
+      // Extra fields for debugging (safe for UI; it ignores unknown keys)
+      debug: {
+        message,
+        blobPath: BLOB_PATH,
+        hasToken: Boolean(BLOB_READ_WRITE_TOKEN),
+      },
     });
 
     res.statusCode = out.statusCode;
