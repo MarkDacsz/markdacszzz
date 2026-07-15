@@ -36,7 +36,8 @@ async function readStoreFromBlob() {
   if (!BLOB_READ_WRITE_TOKEN) return { visitors: [] };
 
   const getResult = await get(BLOB_PATH, {
-    access: 'private',
+    // In your Vercel environment, blob access must be "public"
+    access: 'public',
     ...(BLOB_STORE_ID ? { storeId: BLOB_STORE_ID } : {}),
     ...(BLOB_READ_WRITE_TOKEN ? { token: BLOB_READ_WRITE_TOKEN } : {}),
   });
@@ -65,7 +66,8 @@ async function readStoreFromBlob() {
 
 async function writeStoreToBlob(store) {
   await put(BLOB_PATH, JSON.stringify(store), {
-    access: 'private',
+    // In your Vercel environment, blob access must be "public"
+    access: 'public',
     contentType: 'application/json',
     ...(BLOB_STORE_ID ? { storeId: BLOB_STORE_ID } : {}),
     ...(BLOB_READ_WRITE_TOKEN ? { token: BLOB_READ_WRITE_TOKEN } : {}),
