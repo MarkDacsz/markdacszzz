@@ -4,6 +4,7 @@
     "private": true,
     "dependencies": {
         "@netlify/blobs": "^10.7.9",
+        "@vercel/blob": "^0.24.1",
         "bootstrap": "^5.2.3",
         "concurrently": "^8.0.6",
         "cors": "^2.8.0",
