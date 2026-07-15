@@ -3,6 +3,10 @@ const { get, put } = require('@vercel/blob');
 
 const BLOB_PATH = process.env.VISITOR_BLOB_PATH || 'visitor-counter/visitor-counter.json';
 
+// For Vercel Blob you provided:
+const BLOB_STORE_ID = process.env.BLOB_STORE_ID;
+const BLOB_READ_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
+
 // Same response shape as Netlify function
 function createResponse(statusCode, body) {
   return {
@@ -28,17 +32,32 @@ function getVisitorFingerprint(event) {
 }
 
 async function readStoreFromBlob() {
-  const result = await get(BLOB_PATH, { access: 'private' });
-  if (!result) {
-    return { visitors: [] };
-  }
+  // If required blob env/token is missing, fail gracefully (no crash)
+  if (!BLOB_READ_WRITE_TOKEN) return { visitors: [] };
 
-  // result.blob.stream exists for @vercel/blob; read it fully
+  const getResult = await get(BLOB_PATH, {
+    access: 'private',
+    ...(BLOB_STORE_ID ? { storeId: BLOB_STORE_ID } : {}),
+    ...(BLOB_READ_WRITE_TOKEN ? { token: BLOB_READ_WRITE_TOKEN } : {}),
+  });
+
+  if (!getResult) return { visitors: [] };
+
+  // SDK may return stream either at `getResult.stream` or `getResult.blob.stream`
+  const stream = getResult.stream || getResult.blob?.stream;
+  if (!stream) return { visitors: [] };
+
   const chunks = [];
-  for await (const chunk of result.stream) chunks.push(Buffer.from(chunk));
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   const raw = Buffer.concat(chunks).toString('utf8');
 
-  const parsed = JSON.parse(raw || '{}');
+  let parsed;
+  try {
+    parsed = JSON.parse(raw || '{}');
+  } catch (_e) {
+    parsed = {};
+  }
+
   return {
     visitors: Array.isArray(parsed?.visitors) ? parsed.visitors : [],
   };
@@ -48,6 +67,8 @@ async function writeStoreToBlob(store) {
   await put(BLOB_PATH, JSON.stringify(store), {
     access: 'private',
     contentType: 'application/json',
+    ...(BLOB_STORE_ID ? { storeId: BLOB_STORE_ID } : {}),
+    ...(BLOB_READ_WRITE_TOKEN ? { token: BLOB_READ_WRITE_TOKEN } : {}),
   });
 }
 
