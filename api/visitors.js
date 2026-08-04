@@ -9,11 +9,20 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-let kv = null;
-try {
-  kv = require('@vercel/kv').kv;
-} catch (_e) {
-  kv = null;
+let redisClient = null;
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+if (UPSTASH_URL && UPSTASH_TOKEN) {
+  try {
+    const { Redis } = require('@upstash/redis');
+    redisClient = new Redis({ url: UPSTASH_URL, token: UPSTASH_TOKEN });
+    console.log('[visitor-debug] Upstash Redis client initialized');
+  } catch (e) {
+    console.error('[visitor-debug] failed to init Upstash client', e && e.message ? e.message : e);
+    redisClient = null;
+  }
+} else {
+  console.log('[visitor-debug] UPSTASH env vars not present');
 }
 
 const COOKIE_NAME = 'vc_visitor_id';
@@ -63,46 +72,48 @@ module.exports = async function handler(req, res) {
     const hasVisitorCookie = Boolean(cookies[COOKIE_NAME]);
     console.log('[visitor-debug] cookies present', { hasVisitorCookie, cookieKeys: Object.keys(cookies) });
 
-    // Prefer Vercel KV when available and configured
-    const kvEnvPresent = Boolean(
-      process.env.VERCEL_KV_REST_URL ||
-      process.env.VERCEL_KV_REST_TOKEN ||
-      process.env.VERCEL_KV_URL ||
-      process.env.VERCEL_KV_TOKEN ||
-      process.env.UPSTASH_REDIS_REST_URL ||
-      process.env.UPSTASH_REDIS_REST_TOKEN
-    );
-    console.log('[visitor-debug] kv client loaded', { kvExists: !!kv, kvEnvPresent });
+    // Prefer Upstash Redis when configured
+    const redisConfigured = Boolean(redisClient);
+    console.log('[visitor-debug] redis client state', { redisConfigured });
 
-    if (kv && kvEnvPresent) {
-      console.log('[visitor-debug] using KV backend');
+    if (redisConfigured) {
+      console.log('[visitor-debug] using Upstash Redis backend');
       try {
         if (!hasVisitorCookie) {
           const visitorId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
           const secureAttr = (req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production') ? '; Secure' : '';
           res.setHeader('Set-Cookie', `${COOKIE_NAME}=${visitorId}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${secureAttr}`);
           console.log('[visitor-debug] set cookie for visitor', { visitorId });
-          console.log('[visitor-debug] attempting KV incr visitors_total');
-          const incrResult = await kv.incr('visitors_total');
-          console.log('[visitor-debug] KV incr result', { incrResult });
+          console.log('[visitor-debug] attempting Redis INCR visitors_total');
+          const incrResult = await redisClient.incr('visitors_total');
+          console.log('[visitor-debug] Redis INCR result', { incrResult });
         }
 
-        console.log('[visitor-debug] attempting KV.get visitors_total');
-        const val = await kv.get('visitors_total');
-        console.log('[visitor-debug] KV.get result', { val });
+        console.log('[visitor-debug] attempting Redis GET visitors_total');
+        const val = await redisClient.get('visitors_total');
+        console.log('[visitor-debug] Redis GET result', { val });
         const count = Number(val) || 0;
         console.log('[visitor-debug] returning success', { count });
         return createJSONResponse(res, 200, { count, label: 'Total unique visitors' });
       } catch (err) {
-        console.error('[visitor-debug] KV backend error', err && err.message ? err.message : err, err && err.stack ? err.stack : 'no-stack');
+        console.error('[visitor-debug] Redis backend error', err && err.message ? err.message : err, err && err.stack ? err.stack : 'no-stack');
         const message = err instanceof Error ? err.message : String(err);
         const stack = err instanceof Error ? err.stack : undefined;
         return createJSONResponse(res, 500, { message, stack });
       }
     }
 
-    console.log('[visitor-debug] KV not configured; using local file fallback');
+    console.log('[visitor-debug] Redis not configured; handling fallback');
     try {
+      // If we're running on Vercel serverless and Redis is not configured,
+      // fail loudly instead of attempting to write to the ephemeral filesystem.
+      if (process.env.VERCEL) {
+        console.error('[visitor-debug] running on Vercel but Redis not configured');
+        return createJSONResponse(res, 500, {
+          error: 'Redis (Upstash) is not configured. Attach Upstash Redis or Vercel KV and set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.',
+        });
+      }
+
       const store = readLocalStore();
       console.log('[visitor-debug] local store read', { visitorsLength: Array.isArray(store.visitors) ? store.visitors.length : 'invalid' });
       const forwardedIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim();
