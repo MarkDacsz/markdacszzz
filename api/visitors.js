@@ -1,123 +1,108 @@
+/*
+  Vercel-compatible visitor counter API
+  - Uses Vercel KV when available (recommended for production)
+  - Falls back to a local file store only when KV is not configured (local dev via `server.js` handles /api/visitors)
+  - Uses a cookie to deduplicate unique visitors per browser
+*/
+
+const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
-const { get, put } = require('@vercel/blob');
 
-const BLOB_PATH = process.env.VISITOR_BLOB_PATH || 'visitor-counter/visitor-counter.json';
-
-// For Vercel Blob you provided:
-const BLOB_STORE_ID = process.env.BLOB_STORE_ID;
-const BLOB_READ_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
-
-// Same response shape as Netlify function
-function createResponse(statusCode, body) {
-  return {
-    statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-    },
-    body: JSON.stringify(body),
-  };
+let kv = null;
+try {
+  kv = require('@vercel/kv').kv;
+} catch (_e) {
+  kv = null;
 }
 
-function getVisitorFingerprint(event) {
-  const headers = event?.headers || {};
-  const getHeader = (name) => headers[name] || headers[name.toLowerCase()];
+const COOKIE_NAME = 'vc_visitor_id';
+const DATA_FILE = path.join(process.cwd(), 'data', 'visitor-counter.json');
 
-  // Try common proxy headers
-  const forwardedFor = getHeader('x-forwarded-for') || getHeader('x-nf-client-connection-ip');
-  const ip = forwardedFor?.split(',')?.[0]?.trim() || getHeader('client-ip') || 'unknown';
-  const userAgent = getHeader('user-agent') || 'unknown';
-
-  return crypto.createHash('sha256').update(`${ip}:${userAgent}`).digest('hex');
-}
-
-async function readStoreFromBlob() {
-  // If required blob env/token is missing, fail gracefully (no crash)
-  if (!BLOB_READ_WRITE_TOKEN) return { visitors: [] };
-
-  const getResult = await get(BLOB_PATH, {
-    access: 'private',
-    ...(BLOB_STORE_ID ? { storeId: BLOB_STORE_ID } : {}),
-    ...(BLOB_READ_WRITE_TOKEN ? { token: BLOB_READ_WRITE_TOKEN } : {}),
+function parseCookies(cookieHeader) {
+  const out = {};
+  if (!cookieHeader) return out;
+  cookieHeader.split(';').forEach((c) => {
+    const [k, ...v] = c.trim().split('=');
+    out[k] = decodeURIComponent(v.join('='));
   });
+  return out;
+}
 
-  if (!getResult) return { visitors: [] };
+function createJSONResponse(res, status, body) {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.statusCode = status;
+  res.end(JSON.stringify(body));
+}
 
-  // SDK may return stream either at `getResult.stream` or `getResult.blob.stream`
-  const stream = getResult.stream || getResult.blob?.stream;
-  if (!stream) return { visitors: [] };
-
-  const chunks = [];
-  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
-  const raw = Buffer.concat(chunks).toString('utf8');
-
-  let parsed;
+function readLocalStore() {
   try {
-    parsed = JSON.parse(raw || '{}');
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    return JSON.parse(raw);
   } catch (_e) {
-    parsed = {};
+    return { visitors: [] };
   }
-
-  return {
-    visitors: Array.isArray(parsed?.visitors) ? parsed.visitors : [],
-  };
 }
 
-async function writeStoreToBlob(store) {
-  await put(BLOB_PATH, JSON.stringify(store), {
-    access: 'private',
-    contentType: 'application/json',
-    ...(BLOB_STORE_ID ? { storeId: BLOB_STORE_ID } : {}),
-    ...(BLOB_READ_WRITE_TOKEN ? { token: BLOB_READ_WRITE_TOKEN } : {}),
-  });
+function writeLocalStore(store) {
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2));
 }
 
 module.exports = async function handler(req, res) {
   try {
-    // Basic method guard
     if (req.method && req.method !== 'GET') {
-      const out = createResponse(405, { error: 'Method not allowed' });
-      res.statusCode = out.statusCode;
-      Object.entries(out.headers).forEach(([k, v]) => res.setHeader(k, v));
-      res.end(out.body);
-      return;
+      return createJSONResponse(res, 405, { error: 'Method not allowed' });
     }
 
-    const store = await readStoreFromBlob();
-    const fingerprint = getVisitorFingerprint({ headers: req.headers });
+    const cookies = parseCookies(req.headers?.cookie);
+    const hasVisitorCookie = Boolean(cookies[COOKIE_NAME]);
+
+    // Prefer Vercel KV when available and configured
+    const kvConfigured = kv && (process.env.VERCEL_KV_REST_URL || process.env.VERCEL_KV_REST_TOKEN || process.env.VERCEL_KV_URL || process.env.VERCEL_KV_TOKEN);
+
+    if (kvConfigured) {
+      // If no cookie, create one and increment the counter
+      if (!hasVisitorCookie) {
+        const visitorId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
+        const secureAttr = (req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production') ? '; Secure' : '';
+        // HttpOnly ensures JS cannot read it, but that's fine — we only need presence
+        res.setHeader('Set-Cookie', `${COOKIE_NAME}=${visitorId}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${secureAttr}`);
+        try {
+          await kv.incr('visitors_total');
+        } catch (err) {
+          console.error('KV incr failed:', err && err.message ? err.message : err);
+        }
+      }
+
+      let count = 0;
+      try {
+        const val = await kv.get('visitors_total');
+        count = Number(val) || 0;
+      } catch (err) {
+        console.error('KV get failed:', err && err.message ? err.message : err);
+      }
+
+      return createJSONResponse(res, 200, { count, label: 'Total unique visitors' });
+    }
+
+    // Fallback: local file store (useful for running the Node server locally)
+    const store = readLocalStore();
+    // Use fingerprint based on IP+UA to avoid double counting if cookies are blocked
+    const forwardedIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim();
+    const ip = forwardedIp || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    const fingerprint = crypto.createHash('sha256').update(`${ip}:${userAgent}`).digest('hex');
 
     if (!store.visitors.includes(fingerprint)) {
       store.visitors.push(fingerprint);
-      await writeStoreToBlob(store);
+      writeLocalStore(store);
     }
 
-    const out = createResponse(200, {
-      count: store.visitors.length,
-      label: 'Total unique visitors',
-    });
-
-    res.statusCode = out.statusCode;
-    Object.entries(out.headers).forEach(([k, v]) => res.setHeader(k, v));
-    res.end(out.body);
+    return createJSONResponse(res, 200, { count: store.visitors.length, label: 'Total unique visitors' });
   } catch (error) {
-    // Graceful failure (frontend already handles this)
-    const message = error && error.message ? error.message : String(error);
-    console.error('Visitor counter failed:', message);
-
-    // Include limited diagnostics but keep response compatible
-    const out = createResponse(503, {
-      error: 'Visitor count unavailable',
-      label: 'Visitor count unavailable',
-      // Extra fields for debugging (safe for UI; it ignores unknown keys)
-      debug: {
-        message,
-        blobPath: BLOB_PATH,
-        hasToken: Boolean(BLOB_READ_WRITE_TOKEN),
-      },
-    });
-
-    res.statusCode = out.statusCode;
-    Object.entries(out.headers).forEach(([k, v]) => res.setHeader(k, v));
-    res.end(out.body);
+    console.error('Visitor counter failed:', error && error.message ? error.message : error);
+    return createJSONResponse(res, 503, { error: 'Visitor count unavailable', label: 'Visitor count unavailable' });
   }
 };
