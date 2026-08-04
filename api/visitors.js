@@ -25,6 +25,26 @@ if (UPSTASH_URL && UPSTASH_TOKEN) {
   console.log('[visitor-debug] UPSTASH env vars not present');
 }
 
+// Try to initialize Vercel KV if env vars present
+let kvClient = null;
+const VERCEL_KV_ENV = Boolean(
+  process.env.VERCEL_KV_REST_URL ||
+  process.env.VERCEL_KV_REST_TOKEN ||
+  process.env.VERCEL_KV_URL ||
+  process.env.VERCEL_KV_TOKEN
+);
+if (VERCEL_KV_ENV) {
+  try {
+    kvClient = require('@vercel/kv').kv;
+    console.log('[visitor-debug] Vercel KV client loaded');
+  } catch (e) {
+    console.error('[visitor-debug] failed to load @vercel/kv', e && e.message ? e.message : e);
+    kvClient = null;
+  }
+} else {
+  console.log('[visitor-debug] Vercel KV env vars not present');
+}
+
 const COOKIE_NAME = 'vc_visitor_id';
 const DATA_FILE = path.join(process.cwd(), 'data', 'visitor-counter.json');
 
@@ -72,9 +92,37 @@ module.exports = async function handler(req, res) {
     const hasVisitorCookie = Boolean(cookies[COOKIE_NAME]);
     console.log('[visitor-debug] cookies present', { hasVisitorCookie, cookieKeys: Object.keys(cookies) });
 
-    // Prefer Upstash Redis when configured
+    // Prefer Vercel KV when configured, then Upstash Redis
+    const kvConfigured = Boolean(kvClient && VERCEL_KV_ENV);
     const redisConfigured = Boolean(redisClient);
-    console.log('[visitor-debug] redis client state', { redisConfigured });
+    console.log('[visitor-debug] storage client state', { kvConfigured, redisConfigured });
+
+    if (kvConfigured) {
+      console.log('[visitor-debug] using Vercel KV backend');
+      try {
+        if (!hasVisitorCookie) {
+          const visitorId = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
+          const secureAttr = (req.headers['x-forwarded-proto'] === 'https' || process.env.NODE_ENV === 'production') ? '; Secure' : '';
+          res.setHeader('Set-Cookie', `${COOKIE_NAME}=${visitorId}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${secureAttr}`);
+          console.log('[visitor-debug] set cookie for visitor', { visitorId });
+          console.log('[visitor-debug] attempting KV.incr visitors_total');
+          const incrResult = await kvClient.incr('visitors_total');
+          console.log('[visitor-debug] KV.incr result', { incrResult });
+        }
+
+        console.log('[visitor-debug] attempting KV.get visitors_total');
+        const val = await kvClient.get('visitors_total');
+        console.log('[visitor-debug] KV.get result', { val });
+        const count = Number(val) || 0;
+        console.log('[visitor-debug] returning success', { count });
+        return createJSONResponse(res, 200, { count, label: 'Total unique visitors' });
+      } catch (err) {
+        console.error('[visitor-debug] KV backend error', err && err.message ? err.message : err, err && err.stack ? err.stack : 'no-stack');
+        const message = err instanceof Error ? err.message : String(err);
+        const stack = err instanceof Error ? err.stack : undefined;
+        return createJSONResponse(res, 500, { message, stack });
+      }
+    }
 
     if (redisConfigured) {
       console.log('[visitor-debug] using Upstash Redis backend');
