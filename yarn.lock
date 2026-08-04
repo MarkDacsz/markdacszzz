@@ -2262,7 +2262,7 @@
     "@typescript-eslint/types" "5.48.1"
     eslint-visitor-keys "^3.3.0"
 
-"@upstash/redis@1.25.1":
+"@upstash/redis@^1.20.2", "@upstash/redis@1.25.1":
   version "1.25.1"
   resolved "https://registry.npmjs.org/@upstash/redis/-/redis-1.25.1.tgz"
   integrity sha512-ACj0GhJ4qrQyBshwFgPod6XufVEfKX2wcaihsEvSdLYnY+m+pa13kGt1RXm/yTHKf4TQi/Dy2A8z/y6WUEOmlg==
